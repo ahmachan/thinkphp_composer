@@ -16,6 +16,11 @@
         "filp/whoops": "^2.1",
         "monolog/monolog": "1.21.0"
     },
+    "autoload":{
+        "classmap":[
+            "extends"
+        ]
+    },
     "minimum-stability": "dev",
     "repositories": [
         {"type": "composer", "url": "https://packagist.phpcomposer.com"},

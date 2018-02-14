@@ -23,14 +23,15 @@ define('BUILD_DIR_SECURE',false);
 //CLI
 define('APP_MODE','cli');
 
+// 项目根路径
+define('ROOT_PATH', str_replace('\\', '/', dirname(__FILE__)));
 // 定义应用目录
-define('APP_PATH',dirname(__FILE__).'/Application/');
+define('APP_PATH',ROOT_PATH.'/Application/');
 
-require './vendor/autoload.php';
+// 加载composer
+//include_once ROOT_PATH.'/vendor/autoload.php';
 
-//引入命令行工具文件
-include_once dirname(__FILE__).'/ThinkPHP/Common/CommandLine.php';
 // 引入ThinkPHP入口文件
-require dirname(__FILE__).'/ThinkPHP/ThinkPHP.php';
+require ROOT_PATH.'/ThinkPHP/ThinkPHP.php';
 
 

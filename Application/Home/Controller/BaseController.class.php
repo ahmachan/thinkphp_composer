@@ -2,12 +2,13 @@
 namespace Home\Controller;
 
 use Think\Controller;
-
+/*
 use Whoops\Exception\Frame;
 use Whoops\Exception\Inspector;
 use Whoops\Handler\Handler;
 use Whoops\Handler\PrettyPageHandler;
 use Whoops\Run;
+*/
 
 class BaseController extends Controller
 {
@@ -93,6 +94,7 @@ class BaseController extends Controller
      */
     public function exceptionRegister()
     {
+        /*
         $env = $this->getRuntimeEnv();
         // 设置Whoops提供的错误和异常处理
         $whoops = new \Whoops\Run();
@@ -124,6 +126,7 @@ class BaseController extends Controller
             });
         }
         $whoops->register();
+        */
         return true;
     }
     

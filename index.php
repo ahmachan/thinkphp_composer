@@ -15,10 +15,13 @@
 if (version_compare(PHP_VERSION, '5.3.0', '<')) {
     die('require PHP > 5.3.0 !');
 }
+// 项目根路径
+define('ROOT_PATH', str_replace('\\', '/', dirname(__FILE__)));
 
 //TRANCE ID
 define('TRANCE_ID', microtime(true));
 //环境变量
+//define('RUNTIME_ENVIRONMENT',getenv('RUNTIME_ENVIRONMENT'));
 define('RUNTIME_ENVIRONMENT','DEV');
 //开发与部署的切换
 if(in_array(RUNTIME_ENVIRONMENT, ['TEST','DEV','LOCAL'])){
@@ -33,7 +36,8 @@ define('APP_DEBUG', $debug);
 // 定义应用目录
 define('APP_PATH', './Application/');
 
-require './vendor/autoload.php';
+// 加载composer
+//include_once './vendor/autoload.php';
 
 // 引入ThinkPHP入口文件
 require './ThinkPHP/ThinkPHP.php';
