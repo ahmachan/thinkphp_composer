@@ -25,4 +25,9 @@ class TestController extends BaseController
         
         return $dividend/$divisor;
     }
+    
+    // Home/Test/handleAuthCall
+    public function handleAuthCall(){
+        
+    }
 }

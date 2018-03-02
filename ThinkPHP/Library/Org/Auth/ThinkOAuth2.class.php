@@ -46,9 +46,9 @@ class ThinkOAuth2 extends OAuth2 {
 		];
 		$this -> db = Db::getInstance($dbConfig);
 		$this -> table = array(
-			'auth_codes'=>C('OAUTH2_CODES_TABLE'),
-			'clients'=>C('OAUTH2_CLIENTS_TABLE'),
-			'tokens'=>C('OAUTH2_TOKENS_TABLE')
+			'auth_code'=>C('OAUTH2_CODES_TABLE'),
+			'auth_client'=>C('OAUTH2_CLIENTS_TABLE'),
+			'auth_token'=>C('OAUTH2_TOKENS_TABLE')
 		);
 	}
 
@@ -73,7 +73,7 @@ class ThinkOAuth2 extends OAuth2 {
 	 */
 	public function addClient($client_id, $client_secret, $redirect_uri) {
 		$time = time();
-		$sql = "INSERT INTO {$this -> table['clients']} (client_id, client_secret, redirect_uri, create_time) VALUES ('{$client_id}', '{$client_secret}', '{$redirect_uri}','{$time}')";
+		$sql = "INSERT INTO {$this -> table['auth_client']} (client_id, client_secret, redirect_uri, create_time) VALUES ('{$client_id}', '{$client_secret}', '{$redirect_uri}','{$time}')";
 		$this -> db -> execute($sql);
 	}
 
@@ -83,7 +83,7 @@ class ThinkOAuth2 extends OAuth2 {
 	 */
 	public function checkClientCredentials($client_id, $client_secret = NULL) {
 
-		$sql = "SELECT client_secret FROM {$this -> table['clients']} WHERE client_id = '{$client_id}'";
+		$sql = "SELECT client_secret FROM {$this -> table['auth_client']} WHERE client_id = '{$client_id}'";
 		$result = $this -> db -> query($sql);
 		if ($client_secret === NULL) {
 			return $result !== FALSE;
@@ -101,7 +101,7 @@ class ThinkOAuth2 extends OAuth2 {
 	 * @see OAuth2::getRedirectUri()
 	 */
 	public function getRedirectUri($client_id) {
-		$sql = "SELECT redirect_uri FROM {$this -> table['clients']} WHERE client_id = '{$client_id}'";
+		$sql = "SELECT redirect_uri FROM {$this -> table['auth_client']} WHERE client_id = '{$client_id}'";
 		$result = $this -> db -> query($sql);
 		if ($result === FALSE) {
 			return FALSE;
@@ -119,7 +119,7 @@ class ThinkOAuth2 extends OAuth2 {
 	 * @see OAuth2::getAccessToken()
 	 */
 	public function getAccessToken($access_token) {
-		$sql = "SELECT client_id, user_id, access_token, refresh_token, expires_in, scope FROM {$this -> table['tokens']} WHERE access_token = '{$access_token}'";
+		$sql = "SELECT client_id, user_id, access_token, refresh_token, expires_in, scope FROM {$this -> table['auth_token']} WHERE access_token = '{$access_token}'";
 		$result = $this -> db -> query($sql);
 		//Log::write("getAccessToken : ".$result);
 		//Log::write("getAccessToken : ".$result[0]);
@@ -133,7 +133,7 @@ class ThinkOAuth2 extends OAuth2 {
 	 * @see OAuth2::setAccessToken()
 	 */
 	public function setAccessToken($access_token, $user_id, $client_id, $refresh_token, $expires, $scope = NULL) {
-		$sql = "INSERT INTO {$this -> table['tokens']} (access_token, user_id, client_id, refresh_token, expires_in, scope) VALUES ('{$access_token}', '{$user_id}', '{$client_id}', '{$refresh_token}', '{$expires}', '{$scope}')";
+		$sql = "INSERT INTO {$this -> table['auth_token']} (access_token, user_id, client_id, refresh_token, expires_in, scope) VALUES ('{$access_token}', '{$user_id}', '{$client_id}', '{$refresh_token}', '{$expires}', '{$scope}')";
 		$this -> db -> execute($sql);
 	}
 
@@ -152,12 +152,46 @@ class ThinkOAuth2 extends OAuth2 {
 	 * @see OAuth2::getAuthCode()
 	 */
 	public function getAuthCode($code) {
-		$sql = "SELECT code, client_id, redirect_uri, expires, scope FROM {$this -> table['auth_codes']} WHERE code = '{$code}'";
+		$sql = "SELECT `code`, `client_id`, `redirect_uri`, `expires`, `scope` FROM {$this -> table['auth_code']} WHERE `code` = '{$code}'";
 		$result = $this -> db -> query($sql);
-		//Log::write("getAuthcode : ".$result);
-		//Log::write("getAuthcode : ".$result[0]);
-		//Log::write("getAuthcode : ".$result[0]["code"]);
 		return $result !== FALSE ? $result[0] : NULL;
+	}
+	
+	public function getClientByClientId($clientId){
+	    $sql = <<<SQL
+        Select t.`client_id`,t.`redirect_uri`
+        From {$this -> table['auth_client']} as t
+        WHERE t.`client_id` = '{$clientId}' limit 1;
+SQL;
+	    $result = $this -> db -> query($sql);
+	    if ($result === FALSE) {
+	        return FALSE;
+	    }
+	    return $result;
+	}
+	
+	public function getAuthclientBySecretkey($clientId,$secretKey){
+	    $sql = <<<SQL
+        Select t.`client_id`,t.`redirect_uri`,c.`user_id`,c.`code`,c.`expires`,c.`scope` 
+        From {$this -> table['auth_code']} as c Left join {$this -> table['auth_client']} as t on t.client_id=c.client_id
+        WHERE t.`client_id` = '{$clientId}' and t.`client_secret`='{$secretKey}';
+SQL;
+
+	    $result = $this -> db -> query($sql);
+	    if ($result === FALSE) {
+	        return FALSE;
+	    }
+	    return $result;
+	}
+	
+	public function initClient($clientId,$secretKey, $redirectUri,$code, $userId, $expires, $scope = NULL){
+	    $doneRes = $this->addClient($clientId, $secretKey, $redirectUri);
+	    //事务？？
+	    if ($doneRes){
+	        $result = $this->setAuthCode($code, $userId, $clientId, $redirectUri, $expires,$scope);
+	        return $result;
+	    }
+	    return false;
 	}
 
 	/**
@@ -166,14 +200,41 @@ class ThinkOAuth2 extends OAuth2 {
 	 */
 	public function setAuthCode($code, $user_id, $client_id, $redirect_uri, $expires, $scope = NULL) {
 		//$time = time();
-		$sql = "INSERT INTO {$this -> table['auth_codes']} (code, user_id, client_id, redirect_uri, expires, scope) VALUES ('{$code}', '{$user_id}', '{$client_id}', '{$redirect_uri}', '{$expires}', '{$scope}')";
+		$sql = "INSERT INTO {$this -> table['auth_code']} (`code`, `user_id`, `client_id`, `redirect_uri`, `expires`, `scope`) VALUES ('{$code}', '{$user_id}', '{$client_id}', '{$redirect_uri}', '{$expires}', '{$scope}')";
 		$result = $this -> db -> execute($sql);
+		return $result;
     }
   
     public function checkUser($code){
-	  	$sql = "SELECT user_id FROM {$this -> table['auth_codes']} WHERE code = '{$code}'";
+	  	$sql = "SELECT user_id FROM {$this -> table['auth_code']} WHERE `code` = '{$code}'";
 	  	$result = $this -> db -> query($sql);
 	  	return $result !== FALSE ? $result[0] : NULL;
+    }
+    
+    
+    public function updateAccessTokenByClientIdUserId($accessToken,$userId,$clientId,$refreshToken,$expires){
+        $sql = <<<SQL
+        UPDATE {$this -> table['auth_token']}
+        SET
+        `access_token` = '{$accessToken}',
+        `refresh_token` = '{$refreshToken}',
+        `expires_in` = {$expires}
+        WHERE `client_id` ='{$clientId}' and `user_id`= {$userId};
+SQL;
+        //没有任何数据变化时，返回0行影响行数
+        $doneRes = $this -> db -> execute($sql);
+        if (!$doneRes) {
+            if ("" == $this->getDbError()) {
+                $doneRes = true;
+            }
+        }
+        return $doneRes;
+    }
+    
+    public function getAccessTokenByClientIdUserId($clientId,$userId){
+        $sql = "SELECT `user_id`,`client_id`,`access_token`,`refresh_token`,`expires_in` FROM {$this -> table['auth_token']} WHERE `client_id` ='{$clientId}' and `user_id`= {$userId}";
+        $result = $this -> db -> query($sql);
+        return $result !== FALSE ? $result[0] : NULL;
     }
 
   /**
